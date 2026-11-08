@@ -1,0 +1,11 @@
+# k3s ships the Traefik ingress controller; k3d maps localhost:8080 to it.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: {name: cmdparser, namespace: app}
+spec:
+  rules:
+    - http:
+        paths:
+          - {path: /parse, pathType: Prefix, backend: {service: {name: cmdparser, port: {number: 8000}}}}
+          - {path: /readyz, pathType: Prefix, backend: {service: {name: cmdparser, port: {number: 8000}}}}
+          - {path: /healthz, pathType: Prefix, backend: {service: {name: cmdparser, port: {number: 8000}}}}

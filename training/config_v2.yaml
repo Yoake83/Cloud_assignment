@@ -1,0 +1,19 @@
+# Second model version (needed for the rolling update in Task 4): more epochs, another seed.
+version: v2
+base_model: EleutherAI/pythia-70m
+train_file: data/train.jsonl        # produced by worker/clean.py
+max_train_examples: 1500            # the first 1,500 records only
+seed: 43
+learning_rate: 0.0002
+batch_size: 16
+epochs: 8
+max_seq_length: 128
+warmup_ratio: 0.05
+weight_decay: 0.0
+output_dir: artifacts/v2
+loss_csv: training/loss_v2.csv
+library_versions:
+  python: "3.11"
+  torch: "2.4.1"
+  transformers: "4.44.2"
+  numpy: "1.26.4"

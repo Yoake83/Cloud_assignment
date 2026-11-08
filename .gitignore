@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.secrets/
+artifacts/
+*.safetensors
+*.bin
+*.pt
+*.tar.gz
+models/*/*
+!models/*/model.sha256
+!models/*/version.json
+results/loadtest_*.csv.tmp

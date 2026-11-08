@@ -1,0 +1,32 @@
+# Indexed Job: one pod per shard, all running at the same time in namespace `pipeline`.
+# __SHARDS__ is replaced by `make label SHARDS=n` (default 2).
+apiVersion: batch/v1
+kind: Job
+metadata: {name: teacher-label, namespace: pipeline}
+spec:
+  completionMode: Indexed
+  completions: __SHARDS__
+  parallelism: __SHARDS__
+  backoffLimit: 30
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: worker
+          image: cmdparser-worker:1.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SHARD_COUNT
+              value: "__SHARDS__"
+            - name: SHARD_INDEX
+              valueFrom:
+                fieldRef: {fieldPath: "metadata.annotations['batch.kubernetes.io/job-completion-index']"}
+            - {name: S3_ENDPOINT, value: "http://seaweedfs.data.svc.cluster.local:8333"}
+            - {name: OLLAMA_URL, value: "http://host.k3d.internal:11434"}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: {secretKeyRef: {name: s3-credentials, key: AWS_ACCESS_KEY_ID}}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: {secretKeyRef: {name: s3-credentials, key: AWS_SECRET_ACCESS_KEY}}
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 256Mi}

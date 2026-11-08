@@ -1,0 +1,94 @@
+name: ci
+on:
+  push:
+    branches: [main]
+    tags: [final]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Model to evaluate: 'release' (your trained model) or 'base' (untrained Pythia-70M, to show the gate failing)"
+        type: choice
+        options: [release, base]
+        default: release
+      release_tag:
+        description: "GitHub Release holding model-<tag>.tar.gz"
+        default: v1
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install ruff==0.6.9
+      - run: ruff check .
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  unit-tests:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+
+  evaluate:
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MODEL_CHOICE: ${{ github.event.inputs.model || 'release' }}
+      RELEASE_TAG: ${{ github.event.inputs.release_tag || 'v1' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -r requirements-train.txt
+      - name: Get the model
+        run: |
+          if [ "$MODEL_CHOICE" = "base" ]; then
+            echo "MODEL_PATH=EleutherAI/pythia-70m" >> "$GITHUB_ENV"
+          else
+            mkdir -p model
+            gh release download "$RELEASE_TAG" --pattern "model-$RELEASE_TAG.tar.gz" --pattern model.sha256 --dir model
+            (cd model && tar -xzf "model-$RELEASE_TAG.tar.gz")
+            expected=$(cut -d' ' -f1 model/model.sha256)
+            actual=$(sha256sum "model/model-$RELEASE_TAG.tar.gz" | cut -d' ' -f1)
+            test "$expected" = "$actual"
+            echo "MODEL_PATH=model" >> "$GITHUB_ENV"
+          fi
+      - name: Predict on validation.jsonl
+        run: python eval/predict.py --model "$MODEL_PATH" --out predictions.jsonl
+      - name: Score (report only, the gate comes next)
+        run: python tools/score.py predictions.jsonl data/validation.jsonl --out report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evaluation
+          path: |
+            predictions.jsonl
+            report.json
+
+  quality-gate:
+    needs: evaluate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: {name: evaluation}
+      - name: Quality gate (json_validity >= 95)
+        run: python tools/score.py predictions.jsonl data/validation.jsonl --min-validity 95
