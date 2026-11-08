@@ -1,10 +1,10 @@
 # Command parser: sequence-level distillation + local Kubernetes deployment
 
 Cloud Computing (CS3081) mini project.
-Author: Arunima Das, roll number 230101011.
+Author: Devika, roll number 230101083.
 
 Teacher: phi3.5 (Ollama, temperature 0, seed 42). Student: EleutherAI/pythia-70m.
-Replace `Yoake83/cloud-mini-project` (Makefile, `GITHUB_REPO`) with your real repository name.
+
 
 ## What the project does
 - The parser reads one short English command and returns one JSON object with the keys `intent`, `date`, `time` and `place`.
