@@ -2,7 +2,7 @@
 
 Cloud Computing (CS3081) mini project.
 Author: Devika, roll number 230101083.
-
+Repo: https://github.com/Yoake83/Cloud_assignment
 Teacher: phi3.5 (Ollama, temperature 0, seed 42). Student: EleutherAI/pythia-70m.
 
 
